@@ -15,28 +15,35 @@ module.exports = (req, res) => {
         return res.end();
     }
 
-    // Retreive all artwork records from the database
+   // Retrieve all related Exhibition records from the database
     if (parsedUrl.pathname === "/exhibitions" && method === "GET") {
         return authMiddleware(["staff", "admin"])(req, res, () => {
-            db.query("SELECT * FROM artworks", (err, results) => {
+            const type = parsedUrl.query.type;
+
+            // Define valid types and corresponding SQL tables
+            const validTypes = {
+                "artworks": "artworks",
+                "exhibitions_artworks": "exhibitions_artworks",
+                "special_exhibitions": "special_exhibitions",
+                "exhibition_staff": "exhibition_staff",
+                "special_exhibition_staff": "special_exhibition_staff"
+            };
+
+            if (!validTypes[type]) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                return res.end(
+                    JSON.stringify({ 
+                        message: "Invalid type parameter. Use one of the following: artworks, exhibitions_artworks, special_exhibitions, exhibition_staff, special_exhibition_staff" 
+                    })
+                );
+            }
+
+            const query = `SELECT * FROM ${validTypes[type]}`;
+
+            db.query(query, (err, results) => {
                 if (err) {
                     res.writeHead(500, { "Content-Type": "application/json" });
-                    return res.end(JSON.stringify({ message: "Error retrieving artworks", error: err }));
-                }
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify(results));
-            });
-
-        });
-    }
-
-    // Retrieve all Exhibition artworks records from the database
-    if(parsedUrl.pathname === "/exhibitions" && method === "GET"){
-        return authMiddleware(["staff", "admin"])(req, res, () =>{
-            db.query("SELECT * FROM exhibitions_artworks", (err, results) => {
-                if(err){
-                    res.writeHead(500, {"Content-Type": "application/json"});
-                    return res.end(JSON.stringify({ message: "Error retrieving exhibition artworks", error: err }));
+                    return res.end(JSON.stringify({ message: `Error retrieving ${type} data`, error: err }));
                 }
                 res.writeHead(200, { "Content-Type": "application/json" });
                 res.end(JSON.stringify(results));
@@ -44,65 +51,9 @@ module.exports = (req, res) => {
         });
     }
 
-
-    // Retrieve all Exhibition records from the database
-    if(parsedUrl.pathname === "/exhibitions" && method === "GET"){
-        return authMiddleware(["staff", "admin"])(req, res, () =>{
-            db.query("SELECT * FROM exhibitions", (err, results) => {
-                if(err){
-                    res.writeHead(500, {"Content-Type": "application/json"});
-                    return res.end(JSON.stringify({ message: "Error retrieving exhibitions", error: err }));
-                }
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify(results));
-            });
-        });
-    }
-
-    // Retrieve all Special Exhibtion records from the data
-    if(parsedUrl.pathname === "/exhibitions" && method === "GET"){
-        return authMiddleware(["staff", "admin"])(req, res, () =>{
-            db.query("SELECT * FROM special_exhibitions", (err, results) => {
-                if(err){
-                    res.writeHead(500, {"Content-Type": "application/json"});
-                    return res.end(JSON.stringify({ message: "Error retrieving  special exhibitions", error: err }));
-                }
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify(results));
-            });
-        });
-    }
-
-    // Retrieve all records from exhibition staff
-    if(parsedUrl.pathname === "/exhibitions" && method === "GET"){
-        return authMiddleware(["staff", "admin"])(req, res, () =>{
-            db.query("SELECT * FROM exhibition_staff", (err, results) => {
-                if(err){
-                    res.writeHead(500, {"Content-Type": "application/json"});
-                    return res.end(JSON.stringify({ message: "Error retrieving  special exhibitions", error: err }));
-                }
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify(results));
-            });
-        });
-    }
-
-    // Retrieve all records from special exhibitions staff
-    if(parsedUrl.pathname === "/exhibitions" && method === "GET"){
-        return authMiddleware(["staff", "admin"])(req, res, () =>{
-            db.query("SELECT * FROM special_exhibition_staff", (err, results) => {
-                if(err){
-                    res.writeHead(500, {"Content-Type": "application/json"});
-                    return res.end(JSON.stringify({ message: "Error retrieving  special exhibitions staff", error: err }));
-                }
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify(results));
-            });
-        });
-    }
 
     // POST /exhibitions - Add a new artwork to the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/Addartworks" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -122,14 +73,12 @@ module.exports = (req, res) => {
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
                     const values = [
-                        parseFloat(newArtwork.artworkID), // I am going to write an SQL script to update the artworks table.
-                                                          // You can get rid of the parseFloat() on this and the one below 
-                                                          // just use integer values to test it
+                        parseInt(newArtwork.artworkID), 
                         newArtwork.title,
                         newArtwork.artistName,
-                        newArtwork.yearCreated,
+                        parseInt(newArtwork.yearCreated),
                         newArtwork.medium,
-                        newArtwork.yearAcquired,
+                        parseInt(newArtwork.yearAcquired),
                         newArtwork.location,
                         newArtwork.artCollectionType,
                     ];
@@ -154,7 +103,7 @@ module.exports = (req, res) => {
     }
 
     // POST /exhibitions - Add a new artwork to an exhibition the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/AddExhibitionArtwork" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -174,8 +123,8 @@ module.exports = (req, res) => {
                                    VALUES (?, ?)`;
 
                     const values = [
-                        parseFloat(exhibitionArtworks.artworkID) ,
-                        exhibitionArtworks.exhibitionID,
+                        parseInt(exhibitionArtworks.artworkID) ,
+                        parseInt(exhibitionArtworks.exhibitionID),
                     ];
 
                     db.query(query, values, (err, results) => {
@@ -198,7 +147,7 @@ module.exports = (req, res) => {
     }
 
     // POST /exhibitions - Add a new staff member to an exhibition the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/AddExhibitionStaff" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -218,8 +167,8 @@ module.exports = (req, res) => {
                                    VALUES (?, ?)`;
 
                     const values = [
-                        exhibitionStaff.exhibitionID ,
-                        exhibitionStaff.staffID,
+                        parseInt(exhibitionStaff.exhibitionID) ,
+                        parseInt(exhibitionStaff.staffID),
                     ];
 
                     db.query(query, values, (err, results) => {
@@ -242,7 +191,7 @@ module.exports = (req, res) => {
     }
 
     // POST /exhibitions - Add a new exhibition the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/AddExhibition" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -262,15 +211,15 @@ module.exports = (req, res) => {
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
                     const values = [
-                        exhibitions.exhibitionID,
+                        parseInt(exhibitions.exhibitionID),
                         exhibitions.name,
                         exhibitions.startDate,
                         exhibitions.endDate,
-                        exhibitions.budget,
+                        parseFloat(exhibitions.budget),
                         exhibitions.location,
-                        exhibitions.numTicketsSold,
+                        parseInt(exhibitions.numTicketsSold),
                         exhibitions.themes,
-                        exhibitions.numArtworks,
+                        parseInt(exhibitions.numArtworks),
                     ];
 
                     db.query(query, values, (err, results) => {
@@ -292,9 +241,11 @@ module.exports = (req, res) => {
         });
     }
 
+
+
     
     // POST /exhibitions - Add a new special exhibition staff to the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/AddSpecialExhibitionStaff" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -314,8 +265,8 @@ module.exports = (req, res) => {
                                    VALUES (?, ?)`
 
                     const values = [
-                        specialExhibitionsStaff.specialExhibitionID,
-                        specialExhibitionsStaff.staffID,
+                        parseInt(specialExhibitionsStaff.specialExhibitionID),
+                        parseInt(specialExhibitionsStaff.staffID),
                     ];
 
                     db.query(query, values, (err, results) => {
@@ -337,8 +288,10 @@ module.exports = (req, res) => {
         });
     }
 
+
+
     // POST /exhibitions - Add a new special exhibition to the database (PROTECTED)
-    else if (parsedUrl.pathname === "/exhibitions" && method === "POST") {
+    else if (parsedUrl.pathname === "/exhibitions/AddSpecialExhibition" && method === "POST") {
         return authMiddleware("staff")(req, res, () => {
             let body = "";
             req.on("data", (chunk) => { body += chunk; });
@@ -358,11 +311,11 @@ module.exports = (req, res) => {
                                    VALUES (?, ?, ?, ?, ?, ?)`
 
                     const values = [
-                        specialExhibitions.specialExhibitionID,
+                        parseInt(specialExhibitions.specialExhibitionID),
                         specialExhibitions.Name,
                         specialExhibitions.startDate,
                         specialExhibitions.endDate,
-                        specialExhibitions.budget,
+                        parseFloat(specialExhibitions.budget),
                         specialExhibitions.location,
                     ];
 
@@ -384,6 +337,46 @@ module.exports = (req, res) => {
             });
         });
     }
+    //PUT replaces an artwork in an exhibition with an new piece of art
+    else if (parsedUrl.pathname.startsWith("/exhibitions/changeArtwork") && method === "PUT") {
+        return authMiddleware("staff")(req, res, () => {
+            const exhibitionID = parsedUrl.query.id;
+            const newArtwork = req.body.newArtwork; // Get the new artwork data from the request body
+    
+            if (!exhibitionID) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                return res.end(JSON.stringify({ message: "Missing exhibition ID." }));
+            }
+    
+            if (!newArtwork || !newArtwork.id || !newArtwork.name || !newArtwork.artist) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                return res.end(JSON.stringify({ message: "Invalid artwork data." }));
+            }
+    
+            // Check if exhibition exists and retrieve the current artwork details
+            db.query("SELECT Artwork_ID FROM exhibitions WHERE Exhibition_ID = ?", [exhibitionID], (err, results) => {
+                if (err || results.length === 0) {
+                    res.writeHead(500, { "Content-Type": "application/json" });
+                    return res.end(JSON.stringify({ message: "Error retrieving exhibition data.", error: err }));
+                }
+    
+                // Replace the old artwork with the new one
+                db.query("UPDATE exhibitions SET Artwork_ID = ?, Artwork_Name = ?, Artwork_Artist = ? WHERE Exhibition_ID = ?", 
+                    [newArtwork.id, newArtwork.name, newArtwork.artist, exhibitionID], (err) => {
+                    if (err) {
+                        res.writeHead(500, { "Content-Type": "application/json" });
+                        return res.end(JSON.stringify({ message: "Error replacing artwork.", error: err }));
+                    }
+    
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ message: `Artwork replaced successfully in the exhibition.` }));
+                });
+            });
+        });
+    }
+    
+    
+
 
 
     // Handle Unknown Routes

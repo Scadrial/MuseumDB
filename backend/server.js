@@ -4,6 +4,7 @@ const employeesRoutes = require("./routes/employees"); // Import employees route
 const reportsRoutes = require("./routes/reports"); // Import reports routes
 const authRoutes = require("./routes/auth"); // Import authentication routes
 const authMiddleware = require("./middleware/authMiddleware"); // Import authentication middleware
+const exhibitionsRoutes = require("./routes/exhibitions"); //Import exhibtion routes
  
 // Start HTTP Server
 const server = http.createServer((req, res) => {
@@ -59,6 +60,13 @@ const server = http.createServer((req, res) => {
     // } else if (parsedUrl.pathname.startsWith("/tickets")) { **ANYONE CAN ACCESS /tickts
     //    ticketsRoutes(req, res);
     // }
+
+    else if (parsedUrl.pathname.startsWith("/exhibitions")) {
+        authMiddleware(["staff", "admin"])(req, res, () => {
+            exhibitionsRoutes(req, res, parsedUrl); // Pass parsed URL to exhibition routes
+        });
+        return;
+    }
     // for unknown routes
     else {
         res.writeHead(404, { "Content-Type": "application/json" });
